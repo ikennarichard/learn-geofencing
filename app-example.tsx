@@ -1,33 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Dimensions, TextInput, Alert, Button } from 'react-native';
-import MapView, { Circle, MapPressEvent, Region, Marker } from 'react-native-maps';
+import { StyleSheet, View, Dimensions, TextInput, Alert } from 'react-native';
+import MapView, { Circle, MapPressEvent, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import * as Notifications from 'expo-notifications';
 import { isPointWithinRadius } from 'geolib';
-import { LogLevel, OneSignal } from 'react-native-onesignal';
-import { getUserLocation } from './onsesignal';
 
 type Coordinates = {
   latitude: number;
   longitude: number;
 };
 
-// const LOCATION_TASK_NAME = 'background-location-task';
+const LOCATION_TASK_NAME = 'background-location-task';
 
-// // Define a background location task
-// TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
-//   if (error) {
-//     console.error('Background location error:', error);
-//     return;
-//   }
-//   if (data) {
-//     const { locations } = data as { locations: Location.LocationObject[] };
-//     console.log('Background location update:', locations);
-//   }
-// });
+// Define a background location task
+TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
+  if (error) {
+    console.error('Background location error:', error);
+    return;
+  }
+  if (data) {
+    const { locations } = data as { locations: Location.LocationObject[] };
+    console.log('Background location update:', locations);
+    // Additional geofence monitoring can be implemented here.
+  }
+});
 
 export default function App(): JSX.Element {
+  // Set up state with type annotations
   const [region, setRegion] = useState<Region>({
     latitude: 37.78825,
     longitude: -122.4324,
@@ -38,41 +38,43 @@ export default function App(): JSX.Element {
     latitude: 37.78825,
     longitude: -122.4324,
   });
-  const [marker, setMarker] = useState<Coordinates>({
-    latitude: 37.78825,
-    longitude: -122.4324,
-  });
   const [radius, setRadius] = useState<number>(1000);
-  const [loading, setLoading] = useState<boolean>(false);
-
-  const fetchLocation = async () => {
-    setLoading(true);
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      alert('Permission to access location was denied');
-      setLoading(false);
-      return;
-    }
-    const location = await Location.getCurrentPositionAsync({});
-    const { latitude, longitude } = location.coords;
-    setRegion((prev) => ({ ...prev, latitude, longitude }));
-    setGeofenceCenter({ latitude, longitude });
-    setLoading(false);
-  };
 
   useEffect(() => {
-    fetchLocation();
-    OneSignal.Debug.setLogLevel(LogLevel.Verbose);
-    OneSignal.initialize('1c31c957-2d11-4bbc-9916-0cf41053cdaa');
+    (async () => {
+      // Request location permissions
+      const { status: locationStatus } = await Location.requestForegroundPermissionsAsync();
+      if (locationStatus !== 'granted') {
+        alert('Permission to access location was denied');
+        return;
+      }
 
-    
-    
-    OneSignal.Notifications.requestPermission(true);
+      // Request notification permissions
+      const { status: notifStatus } = await Notifications.requestPermissionsAsync();
+      if (notifStatus !== 'granted') {
+        alert('Notification permissions not granted');
+        return;
+      }
+
+      // Get current position
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+      setRegion({ ...region, latitude, longitude });
+      setGeofenceCenter({ latitude, longitude });
+
+      // Start background location updates
+      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+        accuracy: Location.Accuracy.Highest,
+        timeInterval: 5000,
+        distanceInterval: 10,
+      });
+    })();
   }, []);
 
+  // Handler for map press events
   const handleMapPress = async (e: MapPressEvent) => {
     const { latitude, longitude } = e.nativeEvent.coordinate;
-    setMarker({ latitude, longitude });
+    // Check if the tapped point is within the geofence radius
     const isInside = isPointWithinRadius(
       { latitude, longitude },
       geofenceCenter,
@@ -80,7 +82,17 @@ export default function App(): JSX.Element {
     );
 
     const message = isInside ? 'Inside geofence' : 'Outside geofence';
-    await getUserLocation(isInside)
+
+    // Send a local push notification
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Geofence Alert',
+        body: message,
+      },
+      trigger: null,
+    });
+
+    // Optionally display an alert
     Alert.alert(message);
   };
 
@@ -92,14 +104,15 @@ export default function App(): JSX.Element {
         onPress={handleMapPress}
         onRegionChangeComplete={(region: Region) => setRegion(region)}
       >
+        {/* Render the geofence circle */}
         <Circle
           center={geofenceCenter}
           radius={radius}
           strokeColor="rgba(0,0,255,0.5)"
           fillColor="rgba(0,0,255,0.2)"
         />
-        <Marker coordinate={marker} title="Geofence Center" />
       </MapView>
+      {/* Input for adjusting the geofence radius */}
       <TextInput
         style={styles.input}
         keyboardType="numeric"
@@ -107,7 +120,6 @@ export default function App(): JSX.Element {
         onChangeText={(text) => setRadius(Number(text))}
         value={String(radius)}
       />
-      <Button title={loading ? "Refreshing..." : "Refresh Location"} onPress={fetchLocation} disabled={loading} />
     </View>
   );
 }
@@ -119,7 +131,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   map: {
-    height: 500,
     ...StyleSheet.absoluteFillObject,
   },
   input: {
