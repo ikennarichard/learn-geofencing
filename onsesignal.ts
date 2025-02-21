@@ -1,4 +1,4 @@
-export const getUserLocation = async (isInside) => {
+export const sendPushNotification = async (isInside: boolean) => {
   try {
     const response = await fetch(
       "https://api.onesignal.com/notifications?c=push",
@@ -6,11 +6,11 @@ export const getUserLocation = async (isInside) => {
         method: "POST",
         headers: {
           accept: "application/json",
-          Authorization: `Key os_v2_app_dqy4svzncff3zgiwbt2bau6nvi6fykbz4ssupn5zvzkbllkwsjntdbtpk5bogzbsf4u3kvovcbwol6xgkzjvgpoz466u7ltpc5ac4sq`,
+          Authorization: `Key API_KEY`,
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          app_id: '1c31c957-2d11-4bbc-9916-0cf41053cdaa',
+          app_id: 'APP_ID',
           headings: {en: 'MPC'},
           contents: {
             en: `${
@@ -26,14 +26,17 @@ export const getUserLocation = async (isInside) => {
     );
 
     if (!response.ok) {
-      throw new Error(response.status)
+      throw new Error(response.statusText)
     }
     const json = await response.json()
     console.log(json)
     return json
   } catch (error) {
     console.error(error);
-    throw new Error(error);
+    if(error instanceof Error) {
+      throw new Error(error.message);
+    }
+    
     
   }
 };
