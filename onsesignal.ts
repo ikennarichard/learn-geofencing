@@ -6,11 +6,11 @@ export const sendPushNotification = async (isInside: boolean) => {
         method: "POST",
         headers: {
           accept: "application/json",
-          Authorization: `Key API_KEY`,
+          Authorization: `Key ${process.env.EXPO_PUBLIC_ONESIGNAL_API_KEY}`,
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          app_id: 'APP_ID',
+          app_id: `${process.env.EXPO_PUBLIC_ONESIGNAL_APP_ID}`,
           headings: {en: 'MPC'},
           contents: {
             en: `${

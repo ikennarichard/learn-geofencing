@@ -1,31 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Dimensions, TextInput, Alert, Button } from 'react-native';
-import MapView, { Circle, MapPressEvent, Region, Marker } from 'react-native-maps';
-import * as Location from 'expo-location';
-import * as TaskManager from 'expo-task-manager';
-import * as Notifications from 'expo-notifications';
-import { isPointWithinRadius } from 'geolib';
-import { LogLevel, OneSignal } from 'react-native-onesignal';
-import { getUserLocation } from './onsesignal';
+import React, { useState, useEffect } from "react";
+import {
+  StyleSheet,
+  View,
+  Dimensions,
+  TextInput,
+  Alert,
+  Button,
+} from "react-native";
+import MapView, {
+  Circle,
+  MapPressEvent,
+  Region,
+  Marker,
+} from "react-native-maps";
+import * as Location from "expo-location";
+import { isPointWithinRadius } from "geolib";
+import { LogLevel, OneSignal } from "react-native-onesignal";
+import { sendPushNotification } from "./onsesignal";
 
 type Coordinates = {
   latitude: number;
   longitude: number;
 };
-
-// const LOCATION_TASK_NAME = 'background-location-task';
-
-// // Define a background location task
-// TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }: any) => {
-//   if (error) {
-//     console.error('Background location error:', error);
-//     return;
-//   }
-//   if (data) {
-//     const { locations } = data as { locations: Location.LocationObject[] };
-//     console.log('Background location update:', locations);
-//   }
-// });
 
 export default function App(): JSX.Element {
   const [region, setRegion] = useState<Region>({
@@ -48,8 +44,8 @@ export default function App(): JSX.Element {
   const fetchLocation = async () => {
     setLoading(true);
     const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      alert('Permission to access location was denied');
+    if (status !== "granted") {
+      alert("Permission to access location was denied");
       setLoading(false);
       return;
     }
@@ -63,10 +59,8 @@ export default function App(): JSX.Element {
   useEffect(() => {
     fetchLocation();
     OneSignal.Debug.setLogLevel(LogLevel.Verbose);
-    OneSignal.initialize('1c31c957-2d11-4bbc-9916-0cf41053cdaa');
+    OneSignal.initialize(`${process.env.EXPO_PUBLIC_APP_ID}`);
 
-    
-    
     OneSignal.Notifications.requestPermission(true);
   }, []);
 
@@ -79,8 +73,8 @@ export default function App(): JSX.Element {
       radius
     );
 
-    const message = isInside ? 'Inside geofence' : 'Outside geofence';
-    await getUserLocation(isInside)
+    const message = isInside ? "Inside geofence" : "Outside geofence";
+    await sendPushNotification(isInside);
     Alert.alert(message);
   };
 
@@ -107,7 +101,11 @@ export default function App(): JSX.Element {
         onChangeText={(text) => setRadius(Number(text))}
         value={String(radius)}
       />
-      <Button title={loading ? "Refreshing..." : "Refresh Location"} onPress={fetchLocation} disabled={loading} />
+      <Button
+        title={loading ? "Refreshing..." : "Refresh Location"}
+        onPress={fetchLocation}
+        disabled={loading}
+      />
     </View>
   );
 }
@@ -115,19 +113,19 @@ export default function App(): JSX.Element {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    justifyContent: "flex-end",
+    alignItems: "center",
   },
   map: {
     height: 500,
     ...StyleSheet.absoluteFillObject,
   },
   input: {
-    position: 'absolute',
+    position: "absolute",
     top: 50,
-    width: Dimensions.get('window').width * 0.8,
+    width: Dimensions.get("window").width * 0.8,
     height: 40,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     paddingHorizontal: 10,
     borderRadius: 5,
   },
